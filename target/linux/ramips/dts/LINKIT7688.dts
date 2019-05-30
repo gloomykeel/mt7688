@@ -10,25 +10,79 @@
 	model = "MediaTek LinkIt Smart 7688";
 
 	chosen {
-		bootargs = "console=ttyS2,57600";
+		bootargs = "console=ttyS0,57600";
 	};
 
 	aliases {
-		serial0 = &uart2;
+		serial0 = &uartlite; //ql origin @uart2
 	};
 
 	memory@0 {
 		device_type = "memory";
-		reg = <0x0 0x8000000>;
+		reg = <0x0 0x4000000>;
 	};
 
 	bootstrap {
 		compatible = "mediatek,linkit";
-
 		status = "okay";
 	};
+	/*gpio-spi {
+		compatible = "spi-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-	gpio-leds {
+		cs-gpios = <&gpio0 14 1>;
+		gpio-sck = <&gpio0 15 1>;
+		gpio-miso = <&gpio0 16 1>;
+		gpio-mosi = <&gpio0 17 1>;
+		num-chipselects = <1>;
+
+		spidev@0 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "rohm,dh2228fv";
+			reg = <0>;
+			spi-max-frequency = <40000000>;
+		};
+	};*/
+
+	/*gpio-i2c-uart { 
+		compatible = "i2c-gpio";
+		gpios = <&gpio0 16 1 // sda
+			&gpio0 17 1 // scl
+			 >; 
+		//i2c-gpio,delay-us = <10>;	// ~20 kHz 
+		#address-cells = <1>;
+		#size-cells = <0>;
+		
+		sc16is752@48 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "nxp,sc16is752";
+			reg = <0x48>;
+			clk-freq = <1843200>;
+			irq-gpio = <14>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+		 
+	};*/
+
+	gpio-i2c { 
+		compatible = "i2c-gpio";
+		gpios = <&gpio0 18 1 /* sda*/ 
+			&gpio0 19 1 /* scl*/ >; 
+		i2c-gpio,delay-us = <10>;	/* ~20 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		
+		rtc@32 { 
+			compatible = "epson,rx8025";
+			reg = <0x32>; 
+		};
+		 
+	};
+/*	gpio-leds {
 		compatible = "gpio-leds";
 
 		wifi {
@@ -48,11 +102,16 @@
 			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_WPS_BUTTON>;
 		};
-	};
+	};*/
 };
 
 &pinctrl {
 	state_default: pinctrl0 {
+		uart2 {
+			ralink,group = "gpio";
+			ralink,function = "gpio";
+		};
+
 		gpio {
 			ralink,group = "gpio";
 			ralink,function = "gpio";
@@ -73,6 +132,16 @@
 			ralink,function = "gpio";
 		};
 
+		pwm0 {
+			ralink,group = "pwm0";
+			ralink,function = "gpio";
+		};
+
+		pwm1 {
+			ralink,group = "pwm1";
+			ralink,function = "gpio";
+		};
+
 		wled_an {
 			ralink,group = "wled_an";
 			ralink,function = "gpio";
@@ -82,11 +151,33 @@
 			ralink,group = "wdt";
 			ralink,function = "gpio";
 		};
-	};
-};
 
-&wmac {
-	status = "okay";
+		p0led_an {
+			ralink,group = "p0led_an";
+			ralink,function = "p0led_an";
+		};
+
+		p1led_an {
+			ralink,group = "p1led_an";
+			ralink,function = "gpio";
+		};
+
+		p2led_an {
+			ralink,group = "p2led_an";
+			ralink,function = "gpio";
+		};
+
+		p3led_an {
+			ralink,group = "p3led_an";
+			ralink,function = "gpio";
+		};
+
+		p4led_an {
+			ralink,group = "p4led_an";
+			ralink,function = "gpio";
+		};
+	};
+
 };
 
 &spi0 {
@@ -125,31 +216,47 @@
 			reg = <0x50000 0x1fb0000>;
 		};
 	};
-
-	spidev@1 {
+	/*sc16is752@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "linux,spidev";
-		reg = <1>;
-		spi-max-frequency = <40000000>;
-	};
+		compatible = "nxp,sc16is752";
+		reg = <1 0>;
+		spi-max-frequency = <100000>;
+		//clocks = <&clk20m>;
+		interrupts = <&gpio0 14>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};*/
 };
 
 &i2c {
 	status = "okay";
+	tca6416@20 {
+		compatible = "ti,tca6416";
+		reg = <0x20>;
+		irq-gpio = <11>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+	sc16is752-i2c@48 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "nxp,sc16is752";
+		reg = <0x48>;
+		clk-freq = <1843200>;
+		irq-gpio = <14>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
 };
 
 &uart1 {
 	status = "okay";
 };
 
-&uart2 {
+/*&uart2 {
 	status = "okay";
-};
-
-&pwm {
-	status = "okay";
-};
+};*/
 
 &ethernet {
 	mtd-mac-address = <&factory 0x28>;
@@ -160,6 +267,11 @@
 	mediatek,cd-high;
 };
 
+&pcie {
+	status = "okay";
+};
+
 &wmac {
 	status = "okay";
 };
+

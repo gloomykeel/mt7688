@@ -1,0 +1,20 @@
+Index: linux-4.14.95/drivers/usb/core/generic.c
+===================================================================
+--- linux-4.14.95.orig/drivers/usb/core/generic.c
++++ linux-4.14.95/drivers/usb/core/generic.c
+@@ -100,13 +100,13 @@ int usb_choose_configuration(struct usb_
+ 		 * cause us to reject configurations that we should have
+ 		 * accepted.
+ 		 */
+-
++#if 0 // ql kill bus power detection
+ 		/* Rule out configs that draw too much bus current */
+ 		if (usb_get_max_power(udev, c) > udev->bus_mA) {
+ 			insufficient_power++;
+ 			continue;
+ 		}
+-
++#endif
+ 		/* When the first config's first interface is one of Microsoft's
+ 		 * pet nonstandard Ethernet-over-USB protocols, ignore it unless
+ 		 * this kernel has enabled the necessary host side driver.

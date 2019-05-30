@@ -1,0 +1,212 @@
+Index: linux-4.14.95/drivers/tty/serial/sc16is7xx.c
+===================================================================
+--- linux-4.14.95.orig/drivers/tty/serial/sc16is7xx.c
++++ linux-4.14.95/drivers/tty/serial/sc16is7xx.c
+@@ -17,6 +17,7 @@
+ #include <linux/clk.h>
+ #include <linux/delay.h>
+ #include <linux/device.h>
++#include <linux/gpio.h>
+ #include <linux/gpio/driver.h>
+ #include <linux/i2c.h>
+ #include <linux/module.h>
+@@ -333,6 +334,7 @@ struct sc16is7xx_port {
+ 	struct kthread_worker		kworker;
+ 	struct task_struct		*kworker_task;
+ 	struct kthread_work		irq_work;
++	struct mutex			efr_lock;
+ 	struct sc16is7xx_one		p[0];
+ };
+ 
+@@ -361,6 +363,7 @@ static u8 sc16is7xx_port_read(struct uar
+ 	const u8 line = sc16is7xx_line(port);
+ 
+ 	regmap_read(s->regmap, (reg << SC16IS7XX_REG_SHIFT) | line, &val);
++	//printk(KERN_WARNING "ql sc16is7xx_port_read reg %d val %d \n",reg,val);
+ 
+ 	return val;
+ }
+@@ -369,6 +372,7 @@ static void sc16is7xx_port_write(struct
+ {
+ 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
+ 	const u8 line = sc16is7xx_line(port);
++	//printk(KERN_WARNING "ql sc16is7xx_port_write reg %d val %d \n",reg,val);
+ 
+ 	regmap_write(s->regmap, (reg << SC16IS7XX_REG_SHIFT) | line, val);
+ }
+@@ -397,6 +401,7 @@ static void sc16is7xx_fifo_write(struct
+ 	if (unlikely(!to_send))
+ 		return;
+ 
++	//printk(KERN_WARNING "ql sc16is7xx_fifo_write reg %s val %d \n",s->buf,to_send);
+ 	regcache_cache_bypass(s->regmap, true);
+ 	regmap_raw_write(s->regmap, addr, s->buf, to_send);
+ 	regcache_cache_bypass(s->regmap, false);
+@@ -504,6 +509,21 @@ static int sc16is7xx_set_baud(struct uar
+ 		div /= 4;
+ 	}
+ 
++	/* In an amazing feat of design, the Enhanced Features Register shares
++	 * the address of the Interrupt Identification Register, and is
++	 * switched in by writing a magic value (0xbf) to the Line Control
++	 * Register. Any interrupt firing during this time will see the EFR
++	 * where it expects the IIR to be, leading to "Unexpected interrupt"
++	 * messages.
++	 *
++	 * Prevent this possibility by claiming a mutex while accessing the
++	 * EFR, and claiming the same mutex from within the interrupt handler.
++	 * This is similar to disabling the interrupt, but that doesn't work
++	 * because the bulk of the interrupt processing is run as a workqueue
++	 * job in thread context.
++	 */
++	mutex_lock(&s->efr_lock);
++
+ 	lcr = sc16is7xx_port_read(port, SC16IS7XX_LCR_REG);
+ 
+ 	/* Open the LCR divisors for configuration */
+@@ -519,6 +539,8 @@ static int sc16is7xx_set_baud(struct uar
+ 	/* Put LCR back to the normal mode */
+ 	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, lcr);
+ 
++	mutex_unlock(&s->efr_lock);
++
+ 	sc16is7xx_port_update(port, SC16IS7XX_MCR_REG,
+ 			      SC16IS7XX_MCR_CLKSEL_BIT,
+ 			      prescaler);
+@@ -670,6 +692,7 @@ static bool sc16is7xx_port_irq(struct sc
+ 		unsigned int iir, rxlen;
+ 
+ 		iir = sc16is7xx_port_read(port, SC16IS7XX_IIR_REG);
++	//printk(KERN_WARNING "ql SC16IS7XX_IIR_REG = %d\n",iir);
+ 		if (iir & SC16IS7XX_IIR_NO_INT_BIT)
+ 			return false;
+ 
+@@ -701,6 +724,7 @@ static void sc16is7xx_ist(struct kthread
+ {
+ 	struct sc16is7xx_port *s = to_sc16is7xx_port(ws, irq_work);
+ 
++	mutex_lock(&s->efr_lock);
+ 	while (1) {
+ 		bool keep_polling = false;
+ 		int i;
+@@ -710,12 +734,14 @@ static void sc16is7xx_ist(struct kthread
+ 		if (!keep_polling)
+ 			break;
+ 	}
++	mutex_unlock(&s->efr_lock);
+ }
+ 
+ static irqreturn_t sc16is7xx_irq(int irq, void *dev_id)
+ {
+ 	struct sc16is7xx_port *s = (struct sc16is7xx_port *)dev_id;
+ 
++	//printk(KERN_WARNING "ql sc16is7xx_irq called \n");
+ 	kthread_queue_work(&s->kworker, &s->irq_work);
+ 
+ 	return IRQ_HANDLED;
+@@ -904,6 +930,8 @@ static void sc16is7xx_set_termios(struct
+ 	if (!(termios->c_cflag & CREAD))
+ 		port->ignore_status_mask |= SC16IS7XX_LSR_BRK_ERROR_MASK;
+ 
++	/* As above, claim the mutex while accessing the EFR. */
++	mutex_lock(&s->efr_lock);
+ 	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG,
+ 			     SC16IS7XX_LCR_CONF_MODE_B);
+ 
+@@ -924,7 +952,9 @@ static void sc16is7xx_set_termios(struct
+ 
+ 	/* Update LCR register */
+ 	sc16is7xx_port_write(port, SC16IS7XX_LCR_REG, lcr);
++	mutex_unlock(&s->efr_lock);
+ 
++	printk(KERN_WARNING "ql uart_get_baud_rate port->uartclk %d \n",port->uartclk);
+ 	/* Get baud rate generator configuration */
+ 	baud = uart_get_baud_rate(port, termios, old,
+ 				  port->uartclk / 16 / 4 / 0xffff,
+@@ -1173,20 +1203,37 @@ static int sc16is7xx_probe(struct device
+ 		return -ENOMEM;
+ 	}
+ 
++	ret = of_property_read_u32(dev->of_node, "irq-gpio", &i);
++	if (ret) {
++		dev_err(dev, "%pOF has no valid 'irq-gpio' property (%d)\n",
++			dev->of_node, ret);
++		return ret;
++	}
++	irq=gpio_to_irq(i);//ql
++
+ 	s->clk = devm_clk_get(dev, NULL);
+ 	if (IS_ERR(s->clk)) {
+-		if (pfreq)
+-			freq = *pfreq;
+-		else
+-			return PTR_ERR(s->clk);
++		ret = of_property_read_u32(dev->of_node, "clk-freq", &i);
++		if (ret) {
++			dev_err(dev, "%pOF has no valid 'clk-freq' property (%d)\n",
++				dev->of_node, ret);
++			return ret;
++		}
++		freq=i;//ql
++		//if (pfreq)
++		//	freq = *pfreq;
++		//else
++		//	return PTR_ERR(s->clk);
+ 	} else {
+ 		clk_prepare_enable(s->clk);
+ 		freq = clk_get_rate(s->clk);
++
+ 	}
+ 
+ 	s->regmap = regmap;
+ 	s->devtype = devtype;
+ 	dev_set_drvdata(dev, s);
++	mutex_init(&s->efr_lock);
+ 
+ 	kthread_init_worker(&s->kworker);
+ 	kthread_init_work(&s->irq_work, sc16is7xx_ist);
+@@ -1239,6 +1286,7 @@ static int sc16is7xx_probe(struct device
+ 			goto out_ports;
+ 		}
+ 
++	printk(KERN_WARNING "ql s->p[i].port.uartclk= freq %d val %d \n",s->p[0].port.uartclk,s->p[i].port.uartclk);
+ 		/* Disable all interrupts */
+ 		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_IER_REG, 0);
+ 		/* Disable TX/RX */
+@@ -1348,7 +1396,7 @@ static int sc16is7xx_spi_probe(struct sp
+ 	const struct sc16is7xx_devtype *devtype;
+ 	unsigned long flags = 0;
+ 	struct regmap *regmap;
+-	int ret;
++	int ret,i;
+ 
+ 	/* Setup SPI bus */
+ 	spi->bits_per_word	= 8;
+@@ -1371,8 +1419,8 @@ static int sc16is7xx_spi_probe(struct sp
+ 		const struct spi_device_id *id_entry = spi_get_device_id(spi);
+ 
+ 		devtype = (struct sc16is7xx_devtype *)id_entry->driver_data;
+-		flags = IRQF_TRIGGER_FALLING;
+ 	}
++		flags = IRQF_TRIGGER_FALLING;
+ 
+ 	regcfg.max_register = (0xf << SC16IS7XX_REG_SHIFT) |
+ 			      (devtype->nr_uart - 1);
+@@ -1419,6 +1467,7 @@ static int sc16is7xx_i2c_probe(struct i2
+ 	const struct sc16is7xx_devtype *devtype;
+ 	unsigned long flags = 0;
+ 	struct regmap *regmap;
++	int ret,i;
+ 
+ 	if (i2c->dev.of_node) {
+ 		const struct of_device_id *of_id =
+@@ -1430,8 +1479,8 @@ static int sc16is7xx_i2c_probe(struct i2
+ 		devtype = (struct sc16is7xx_devtype *)of_id->data;
+ 	} else {
+ 		devtype = (struct sc16is7xx_devtype *)id->driver_data;
+-		flags = IRQF_TRIGGER_FALLING;
+ 	}
++		flags = IRQF_TRIGGER_FALLING;
+ 
+ 	regcfg.max_register = (0xf << SC16IS7XX_REG_SHIFT) |
+ 			      (devtype->nr_uart - 1);
