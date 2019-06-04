@@ -1,7 +1,7 @@
 #!/bin/sh /etc/rc.common
 # Copyright (C) 2013-2014 OpenWrt.org
 
-START=00
+START=15
 STOP=90
 
 RTC_DEV=/dev/rtc0
@@ -20,7 +20,7 @@ start() {
 }
 
 stop() {
-	[ -e "$RTC_DEV" ] && [ -e "$HWCLOCK" ] && $HWCLOCK -w -u -f $RTC_DEV && \
+#	[ -e "$RTC_DEV" ] && [ -e "$HWCLOCK" ] && $HWCLOCK -w -u -f $RTC_DEV && \
 		logger -t sysfixtime "saved '$(date)' to $RTC_DEV"
 }
 
