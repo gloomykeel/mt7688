@@ -107,11 +107,6 @@
 
 &pinctrl {
 	state_default: pinctrl0 {
-		uart2 {
-			ralink,group = "gpio";
-			ralink,function = "gpio";
-		};
-
 		gpio {
 			ralink,group = "gpio";
 			ralink,function = "gpio";
@@ -254,9 +249,9 @@
 	status = "okay";
 };
 
-/*&uart2 {
+&uart2 {
 	status = "okay";
-};*/
+};
 
 &ethernet {
 	mtd-mac-address = <&factory 0x28>;
