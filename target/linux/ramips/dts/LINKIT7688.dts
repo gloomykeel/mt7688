@@ -124,7 +124,7 @@
 
 		spis {
 			ralink,group = "spis";
-			ralink,function = "gpio";
+			ralink,function = "pwm_uart2";
 		};
 
 		pwm0 {
