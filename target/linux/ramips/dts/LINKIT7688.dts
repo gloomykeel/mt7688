@@ -144,7 +144,7 @@
 
 		wdt {
 			ralink,group = "wdt";
-			ralink,function = "gpio";
+			ralink,function = "wdt";
 		};
 
 		p0led_an {
@@ -267,6 +267,10 @@
 };
 
 &wmac {
+	status = "okay";
+};
+
+&watchdog{
 	status = "okay";
 };
 
