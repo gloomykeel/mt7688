@@ -1814,7 +1814,6 @@ clean:
 	rm -f ./uboot.bin ./uboot.img ./u-boot ./u-boot.* ./uboot_a.bin ./System.map
 	rm -f scripts/lxdialog/lxdialog
 	rm -f httpd/fsdata.c
-	rm -f toolchain/buildroot-gcc342 -r
 
 clobber:	clean
 	find . -type f \( -name .depend \
