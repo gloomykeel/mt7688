@@ -1,3 +1,5 @@
+#!/bin/sh
+### sudo apt-get install lib32ncurses5
 if [ ! -e ./.config ];then
   cp oem7628_config .config
 fi
