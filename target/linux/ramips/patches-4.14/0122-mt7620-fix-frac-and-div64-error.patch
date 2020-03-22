@@ -1,0 +1,33 @@
+Index: linux-4.14.95/arch/mips/ralink/mt7620.c
+===================================================================
+--- linux-4.14.95.orig/arch/mips/ralink/mt7620.c
++++ linux-4.14.95/arch/mips/ralink/mt7620.c
+@@ -18,6 +18,7 @@
+ #include <asm/mach-ralink/ralink_regs.h>
+ #include <asm/mach-ralink/mt7620.h>
+ #include <asm/mach-ralink/pinmux.h>
++#include <asm/div64.h>
+ 
+ #include "common.h"
+ 
+@@ -520,15 +521,16 @@ void __init ralink_clk_init(void)
+ #define RFMT(label)	label ":%lu.%03luMHz "
+ #define RINT(x)		((x) / 1000000)
+ #define RFRAC(x)	(((x) / 1000) % 1000)
++#define CPU_FRAC_DIV	(2) // ql 2020.3.19
+ 
+ 	if (is_mt76x8()) {
+ 		if (xtal_rate == MHZ(40))
+-			cpu_rate = MHZ(580);
++			cpu_rate = MHZ(580/CPU_FRAC_DIV);
+ 		else
+-			cpu_rate = MHZ(575);
+-		dram_rate = sys_rate = cpu_rate / 3;
++			cpu_rate = MHZ(575/CPU_FRAC_DIV);
++		dram_rate = sys_rate = cpu_rate / 3 * CPU_FRAC_DIV;
+ 		periph_rate = MHZ(40);
+-		pcmi2s_rate = MHZ(480);
++		pcmi2s_rate = MHZ(480/CPU_FRAC_DIV);
+ 
+ 		ralink_clk_add("10000d00.uartlite", periph_rate);
+ 		ralink_clk_add("10000e00.uartlite", periph_rate);
