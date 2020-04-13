@@ -82,16 +82,27 @@
 		};
 		 
 	};
-/*	gpio-leds {
+
+	gpio-leds {
 		compatible = "gpio-leds";
 
+		heart {
+			label = "led-heart";
+			gpios = <&gpio0 3 GPIO_ACTIVE_HIGH>;
+		};
+
 		wifi {
-			label = "linkit-smart-7688:orange:wifi";
-			gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+			label = "led-wifi";
+			gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		};
+
+		lan {
+			label = "led-lan";
+			gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;
 		};
 	};
 
-	gpio-keys-polled {
+/*	gpio-keys-polled {
 		compatible = "gpio-keys-polled";
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -149,7 +160,7 @@
 
 		p0led_an {
 			ralink,group = "p0led_an";
-			ralink,function = "p0led_an";
+			ralink,function = "gpio";
 		};
 
 		p1led_an {

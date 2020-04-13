@@ -21,19 +21,7 @@ apply_defaults() {
 
 	[ "$frag_low_thresh" ] && sysctl -qw \
 		net.ipv4.ipfrag_low_thresh="$frag_low_thresh" \
-		net.ipv4.ipfrag_high_thresh="$frag_high_thresh" \
-		net.ipv6.ip6frag_low_thresh="$frag_low_thresh" \
-		net.ipv6.ip6frag_high_thresh="$frag_high_thresh" \
-		net.netfilter.nf_conntrack_frag6_low_thresh="$frag_low_thresh" \
-		net.netfilter.nf_conntrack_frag6_high_thresh="$frag_high_thresh"
-
-	# first set default, then all interfaces to avoid races with appearing interfaces
-	if [ -d /proc/sys/net/ipv6/conf ]; then
-		echo 0 > /proc/sys/net/ipv6/conf/default/accept_ra
-		for iface in /proc/sys/net/ipv6/conf/*/accept_ra; do
-			echo 0 > "$iface"
-		done
-	fi
+		net.ipv4.ipfrag_high_thresh="$frag_high_thresh"
 }
 
 start() {
