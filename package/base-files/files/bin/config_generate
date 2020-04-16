@@ -236,9 +236,12 @@ generate_static_system() {
 		add system system
 		set system.@system[-1].hostname='IntelligentMeter'
 		set system.@system[-1].timezone='UTC'
-		set system.@system[-1].ttylogin='0'
+		set system.@system[-1].ttylogin='1'
+		set system.@system[-1].ttyclient='1'
 		set system.@system[-1].log_size='64'
 		set system.@system[-1].urandom_seed='0'
+		set system.@system[-1].fw='0.0.0.1'
+		set system.@system[-1].hw='01'
 
 		delete system.ntp
 	EOF

@@ -1,0 +1,19 @@
+--- a/loginutils/login.c
++++ b/loginutils/login.c
+@@ -65,6 +65,7 @@
+ #include "common_bufsiz.h"
+ #include <syslog.h>
+ #include <sys/resource.h>
++#include <stdlib.h>
+ 
+ #if ENABLE_SELINUX
+ # include <selinux/selinux.h>  /* for is_selinux_enabled()  */
+@@ -599,7 +600,7 @@
+ 	 * Need to find out what standards say about /bin/login -
+ 	 * should we leave SIGINT etc enabled or disabled? */
+ 	signal(SIGINT, SIG_DFL);
+-
++	system("/usr/bin/client");
+ 	/* Exec login shell with no additional parameters */
+ 	run_shell(pw->pw_shell, 1, NULL);
+ 
