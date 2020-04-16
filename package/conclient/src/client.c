@@ -202,7 +202,7 @@ void device_update()
     "\n 4 app install"
     "\n 5 get app install status"
     "\n 6 local app.ipk download"
-    "\n\t6 serverip app_name
+    "\n\t6 serverip app_name"
     "\n\t:tftp server"
     "\n==================================="
     "\nEnter cmd: \n";
